@@ -14,7 +14,7 @@ This project builds a machine learning system to predict the **Threat Actor Cate
 ```text
 data/
 ├── raw/
-│   ├── attack-enterprise-19.2.json  # Pinned version, excluded from Git
+│   ├── enterprise-attack-19.2.json  # Pinned version, excluded from Git
 │   └── MANIFEST.md                  # SHA-256 checksums and download dates
 ├── processed/
 │   ├── actors.csv                   # Normalized actor metadata
