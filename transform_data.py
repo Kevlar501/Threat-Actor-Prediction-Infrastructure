@@ -16,7 +16,7 @@ def load_stix_data(filepath):
     """Load the STIX bundle JSON."""
     print(f"Loading STIX data from {filepath}...")
     try:
-        with open(filepath, 'r') as f:
+        with open(filepath, 'r', encoding='utf-8') as f:
             bundle = json.load(f)
         return bundle['objects']
     except FileNotFoundError:
