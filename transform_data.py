@@ -15,58 +15,64 @@ os.makedirs(FEATURES_DIR, exist_ok=True)
 def load_stix_data(filepath):
     """Load the STIX bundle JSON."""
     print(f"Loading STIX data from {filepath}...")
-    with open(filepath, 'r') as f:
-        bundle = json.load(f)
-    return bundle['objects']
+    try:
+        with open(filepath, 'r') as f:
+            bundle = json.load(f)
+        return bundle['objects']
+    except FileNotFoundError:
+        print(f"Error: Raw file {RAW_FILE} not found. Please run fetch_mitre.py first.")
+        sys.exit(1)
+    except json.JSONDecodeError:
+        print(f"Error: {RAW_FILE} is not a valid JSON file.")
+        sys.exit(1)
 
-def extract_actors_and_techniques(objects):
-    """Extracts actors and techniques from the STIX objects."""
-    actors = []
+def extract_groups_and_techniques(objects):
+    """Extracts groups (actors + intrusion-sets) and techniques."""
+    groups = []
     techniques = []
-    actor_ids = set()
+    group_ids = set()
     technique_ids = set()
     
     for obj in objects:
-        if obj['type'] == 'threat-actor':
-            actors.append(obj)
-            actor_ids.add(obj['id'])
+        if obj['type'] in ('threat-actor', 'intrusion-set'):
+            groups.append(obj)
+            group_ids.add(obj['id'])
         elif obj['type'] == 'attack-pattern':
             techniques.append(obj)
             technique_ids.add(obj['id'])
             
-    return actors, techniques, actor_ids, technique_ids
+    return groups, techniques, group_ids, technique_ids
 
-def extract_relationships(objects, actor_ids, technique_ids):
-    """Extracts 'uses' relationships between actors and techniques."""
+def extract_relationships(objects, group_ids, technique_ids):
+    """Extracts 'uses' relationships between groups and techniques."""
     relationships = []
     for obj in objects:
         if obj['type'] == 'relationship' and obj['relationship_type'] == 'uses':
             source = obj['source_ref']
             target = obj['target_ref']
             # Only count if source is a group and target is a technique
-            if source in actor_ids and target in technique_ids:
+            if source in group_ids and target in technique_ids:
                 relationships.append({
                     'source_id': source,
                     'target_id': target
                 })
     return relationships
 
-def create_normalized_csvs(actors, techniques, relationships):
-    """Creates the normalized CSV files for actors, techniques, and relationships."""
+def create_normalized_csvs(groups, techniques, relationships):
+    """Creates the normalized CSV files for groups, techniques, and relationships."""
     print("Creating normalized CSVs...")
     
-    # Actors CSV
-    actor_data = []
-    for a in actors:
-        actor_data.append({
-            'id': a['id'],
-            'name': a['name'],
-            'type': a.get('type', 'threat-actor'),
-            'description': str(a.get('description', '')),
-            'aliases': str(a.get('aliases', [])),
-            'sighted': str(a.get('sighted', []))
+    # Groups CSV (includes both threat-actors and intrusion-sets)
+    group_data = []
+    for g in groups:
+        group_data.append({
+            'id': g['id'],
+            'name': g['name'],
+            'type': g.get('type', 'group'),
+            'description': str(g.get('description', '')),
+            'aliases': str(g.get('aliases', []))
         })
-    pd.DataFrame(actor_data).to_csv(os.path.join(PROCESSED_DIR, 'actors.csv'), index=False)
+    pd.DataFrame(group_data).to_csv(os.path.join(PROCESSED_DIR, 'actors.csv'), index=False)
     
     # Techniques CSV
     tech_data = []
@@ -84,34 +90,29 @@ def create_normalized_csvs(actors, techniques, relationships):
         rel_data.append(r)
     pd.DataFrame(rel_data).to_csv(os.path.join(PROCESSED_DIR, 'relationships.csv'), index=False)
     
-    print(f"Created {len(actor_data)} actors, {len(tech_data)} techniques, {len(rel_data)} relationships.")
+    print(f"Created {len(group_data)} groups, {len(tech_data)} techniques, {len(rel_data)} relationships.")
 
-def create_feature_table(actors, relationships, actor_categories_map):
+def create_feature_table(groups, relationships, group_categories_map):
     """Creates the flat feature table for ML modeling."""
     print("Creating feature table...")
     
     # Get all unique technique IDs from relationships
     all_technique_ids = set(r['target_id'] for r in relationships)
-    tech_names = {}
-    for t in all_technique_ids:
-        tech_names[t] = t.split('--')[-1] # e.g., 'T1059'
-        
+    
     feature_rows = []
-    for a in actors:
-        actor_id = a['id']
-        # Get techniques for this actor
-        actor_techs = [r['target_id'] for r in relationships if r['source_id'] == actor_id]
+    for g in groups:
+        group_id = g['id']
+        # Get techniques for this group
+        group_techs = [r['target_id'] for r in relationships if r['source_id'] == group_id]
         
         # Create binary flags
-        row = {'actor_id': actor_id, 'actor_name': a['name']}
+        row = {'group_id': group_id, 'group_name': g['name'], 'group_type': g['type']}
         for tech_id in all_technique_ids:
-            row[tech_id] = 1 if tech_id in actor_techs else 0
+            row[tech_id] = 1 if tech_id in group_techs else 0
             
         # Add category label from our manual map
-        # Note: This assumes actor_categories.csv is already created
-        # If not, we can't add the label yet.
-        if actor_id in actor_categories_map:
-            row['target_category'] = actor_categories_map[actor_id]
+        if group_id in group_categories_map:
+            row['target_category'] = group_categories_map[group_id]
         else:
             row['target_category'] = 'Other/Unknown'
             
@@ -120,29 +121,32 @@ def create_feature_table(actors, relationships, actor_categories_map):
     return pd.DataFrame(feature_rows)
 
 def main():
-    if not os.path.exists(RAW_FILE):
-        print(f"Error: Raw file {RAW_FILE} not found. Please run fetch_mitre.py first.")
-        sys.exit(1)
-        
     objects = load_stix_data(RAW_FILE)
-    actors, techniques, actor_ids, technique_ids = extract_actors_and_techniques(objects)
-    relationships = extract_relationships(objects, actor_ids, technique_ids)
+    groups, techniques, group_ids, technique_ids = extract_groups_and_techniques(objects)
+    relationships = extract_relationships(objects, group_ids, technique_ids)
     
-    create_normalized_csvs(actors, techniques, relationships)
+    create_normalized_csvs(groups, techniques, relationships)
     
-    # Load actor categories if they exist
+    # Load group categories if they exist
     cat_file = os.path.join(PROCESSED_DIR, 'actor_categories.csv')
     if os.path.exists(cat_file):
-        print("Loading actor categories for feature table...")
+        print("Loading group categories for feature table...")
         df_cats = pd.read_csv(cat_file)
-        actor_categories_map = dict(zip(df_cats['actor_id'], df_cats['target_category']))
+        # Ensure the CSV has a 'group_id' column that matches STIX IDs
+        if 'group_id' in df_cats.columns:
+            group_categories_map = dict(zip(df_cats['group_id'], df_cats['target_category']))
+        else:
+            print("Warning: actor_categories.csv does not have a 'group_id' column. Using 'id' as fallback.")
+            group_categories_map = dict(zip(df_cats['id'], df_cats['target_category']))
     else:
         print("Warning: actor_categories.csv not found. Feature table will have no target labels.")
-        actor_categories_map = {}
+        group_categories_map = {}
         
-    features_df = create_feature_table(actors, relationships, actor_categories_map)
+    features_df = create_feature_table(groups, relationships, group_categories_map)
     features_df.to_csv(os.path.join(FEATURES_DIR, 'features.csv'), index=False)
+    
     print(f"Feature table created with {len(features_df)} rows.")
+    print(f"Check: {len(features_df[features_df['target_category'] != 'Other/Unknown'])} rows have verified labels.")
 
 if __name__ == "__main__":
     main()
