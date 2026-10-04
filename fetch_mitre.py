@@ -1,7 +1,9 @@
 import os
 import hashlib
-import requests
+import urllib.request
+import urllib.error
 import json
+from datetime import datetime, timezone
 
 # Configuration
 DATA_DIR = "data"
@@ -18,14 +20,14 @@ def create_directories():
     os.makedirs(PROCESSED_DIR, exist_ok=True)
 
 def download_file(url, filepath):
-    """Download file with progress indication."""
+    """Download file using native urllib."""
     print(f"Downloading {url}...")
-    response = requests.get(url, stream=True)
-    response.raise_for_status()
-    with open(filepath, 'wb') as f:
-        for chunk in response.iter_content(chunk_size=8192):
-            f.write(chunk)
-    print(f"Downloaded to {filepath}")
+    try:
+        urllib.request.urlretrieve(url, filepath)
+        print(f"Downloaded to {filepath}")
+    except urllib.error.URLError as e:
+        print(f"Error downloading file: {e}")
+        exit(1)
 
 def verify_checksum(filepath, expected_checksum):
     """Verify file integrity using SHA-256."""
@@ -49,11 +51,14 @@ def create_manifest(filepath):
     with open(filepath, 'rb') as f:
         sha256_hash = hashlib.sha256(f.read()).hexdigest()
     
+    # Use a standardized UTC date format
+    download_date = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    
     manifest_content = f"""# Data Manifest
 
 ## MITRE ATT&CK STIX Data
 - **Version:** {VERSION}
-- **Download Date:** $(date -u)
+- **Download Date:** {download_date}
 - **File:** enterprise-attack.json
 - **SHA-256 Checksum:** {sha256_hash}
 - **Source:** https://github.com/mitre-attack/attack-stix-data/releases/tag/{VERSION}
@@ -81,5 +86,4 @@ def main():
         exit(1)
 
 if __name__ == "__main__":
-    # You'll need to install requests: pip install requests
     main()
