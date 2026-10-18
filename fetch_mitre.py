@@ -59,7 +59,7 @@ def create_manifest(filepath):
 ## MITRE ATT&CK STIX Data
 - **Version:** {VERSION}
 - **Download Date:** {download_date}
-- **File:** enterprise-attack.json
+- **File:** enterprise-attack-19.2.json
 - **SHA-256 Checksum:** {sha256_hash}
 - **Source:** https://github.com/mitre-attack/attack-stix-data/releases/tag/{VERSION}
 """
@@ -69,7 +69,7 @@ def create_manifest(filepath):
 
 def main():
     create_directories()
-    filepath = os.path.join(RAW_DIR, "enterprise-attack.json")
+    filepath = os.path.join(RAW_DIR, "enterprise-attack-19.2.json")
     
     # Download if file doesn't exist
     if not os.path.exists(filepath):

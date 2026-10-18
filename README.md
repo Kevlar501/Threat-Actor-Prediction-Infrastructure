@@ -85,12 +85,24 @@ To maintain dataset integrity without introducing bias through imputation:
 
 ## 6. Reproducibility
 
+### Data, Dependencies and Labeling
+
 - **Pinned Version:** MITRE ATT&CK STIX v19.2 (Enterprise), released August 5, 2026.
-- **Checksums:** All raw files verified via SHA-256 in `data/MANIFEST.md`. For the enterprise domain: `sha256:dc1639caa5501d720e280cf1cbd8fbe009884a0c9b3e6e9ed9d0c25166c3d8f4`.
-- **Dependencies:** Exact versions pinned in `requirements.txt` (e.g., `scikit-learn==1.4.2`).
+- **Checksums:** All raw files verified via SHA-256 in `data/raw/MANIFEST.md`. For the enterprise domain: `sha256:dc1639caa5501d720e280cf1cbd8fbe009884a0c9b3e6e9ed9d0c25166c3d8f4`.
+- **Dependencies:** Exact versions pinned in `requirements.txt` (e.g., `scikit-learn==1.7.2`). Developed on Python 3.10.6.
 - **Seeds:** `random_state=42` applied to all splits and model initializations.
-- **Labeling Source:** CrowdStrike 2026 Global Threat Report. Specific actor-to-category assignments are documented row-by-row in `data/processed/actor_categories.csv`, including a `source_note` column citing the page or section used for each decision.
-- **Nomenclature Mapping:** Because CrowdStrike and MITRE use different group naming conventions (e.g., CrowdStrike's `FANCY BEAR` corresponds to MITRE's `G0016 / APT29`), a `crowdstrike_to_mitre_map.csv` lookup file resolves labeling sources to STIX actor IDs before merging.
+- **Labeling Source:** Primary: MITRE group descriptions and country attribution. Cross-check: CrowdStrike 2026 Global Threat Report. Specific actor-to-category assignments are documented row-by-row in `data/processed/actor_categories.csv`, including a `source_note` column recording the evidence for each decision (the MITRE group ID or description text, and the CrowdStrike page or section where it was consulted).
+- **Nomenclature Mapping:** Because CrowdStrike and MITRE use different group naming conventions (e.g., CrowdStrike's `FANCY BEAR` corresponds to MITRE's `G0007 / APT28`), a `crowdstrike_to_mitre_map.csv` lookup file resolves labeling sources to STIX actor IDs before merging.
+
+### Reproducing the environment and data
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python fetch_mitre.py      # downloads and checksum-verifies raw data
+python transform_data.py   # builds data/processed/ and data/features/
+```
 
 ## 7. Limitations & Future Iterations
 
