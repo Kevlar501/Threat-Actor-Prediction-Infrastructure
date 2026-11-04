@@ -38,7 +38,7 @@ The processed dataset is small (<1MB), making CSVs the most appropriate format f
 | `group_name` | 1 | string | Metadata | Actor name as published by MITRE (e.g. APT38). | Taken from the STIX bundle. Not a model input. |
 | `group_type` | 1 | string | Metadata | STIX object type. Always `intrusion-set`, so it carries no information. | Taken from the STIX bundle. Not a model input. |
 | `attack-pattern--<uuid>` | 498 | integer (0/1) | Feature | 1 if MITRE records the actor as using this technique, otherwise 0. | Built from actor-to-technique relationships in `relationships.csv`. |
-| `target_category` | 1 | string (categorical) | Target (Tier 1) | Coarse actor category: Nation-State, Cybercriminal, Hacktivist or Other/Unknown. | Looked up from `actor_categories.csv`. **Currently every row is Other/Unknown because that file has not been created yet.** |
+| `target_category` | 1 | string (categorical) | Target (Tier 1) | Coarse actor category: Nation-State, Cybercriminal, Hacktivist or Other/Unknown. | Looked up from `actor_categories.csv`. **Labels come from the first-pass actor_categories.csv and are still being refined: Nation-State 88, Cybercriminal 43, Hacktivist 2, Other/Unknown 58 (43 labeled Other/Unknown, plus 15 revoked or deprecated groups with no label that default to Other/Unknown).** |
 
 ### Feature Engineering
 
