@@ -30,9 +30,19 @@ The processed dataset is small (<1MB), making CSVs the most appropriate format f
 
 ## 3. Data Transformation & Features
 
+### Feature Table (`data/features/features.csv`: 191 rows, 502 columns)
+
+| Column(s) | Count | Datatype | Role | Description | How it is obtained |
+|---|---|---|---|---|---|
+| `group_id` | 1 | string | Identifier | STIX ID of the MITRE intrusion set (threat actor), e.g. `intrusion-set--<uuid>`. One row per actor. | Taken from the STIX bundle. Matches `source_id` in `relationships.csv`. |
+| `group_name` | 1 | string | Metadata | Actor name as published by MITRE (e.g. APT38). | Taken from the STIX bundle. Not a model input. |
+| `group_type` | 1 | string | Metadata | STIX object type. Always `intrusion-set`, so it carries no information. | Taken from the STIX bundle. Not a model input. |
+| `attack-pattern--<uuid>` | 498 | integer (0/1) | Feature | 1 if MITRE records the actor as using this technique, otherwise 0. | Built from actor-to-technique relationships in `relationships.csv`. |
+| `target_category` | 1 | string (categorical) | Target (Tier 1) | Coarse actor category: Nation-State, Cybercriminal, Hacktivist or Other/Unknown. | Looked up from `actor_categories.csv`. **Currently every row is Other/Unknown because that file has not been created yet.** |
+
 ### Feature Engineering
 
-- **Technique Flags:** Binary columns for each MITRE technique (e.g., `T1059`, `T1566`) indicating presence in an actor's behavioral profile.
+- **Technique Flags:** Binary columns for each MITRE technique, named by its STIX ID (e.g., `attack-pattern--72b74d71-8169-42aa-92e0-e7b04b9f5a08`), indicating presence in an actor's behavioral profile.
 - **Labeling:**
   - **Tier 1 (Coarse):** Single-label classification (Nation-State, Cybercriminal, Hacktivist, Other).
   - **Tier 2 (Fine):** Multi-class classification of specific actor names.

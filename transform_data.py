@@ -67,8 +67,11 @@ def create_normalized_csvs(groups, techniques, relationships):
     for g in groups:
         group_data.append({
             'id': g['id'],
+            'attack_id': next((r.get('external_id', '') for r in g.get('external_references', []) if r.get('source_name') == 'mitre-attack'), ''),
             'name': g['name'],
             'type': g.get('type', 'group'),
+            'revoked': g.get('revoked', False),
+            'deprecated': g.get('x_mitre_deprecated', False),
             'description': str(g.get('description', '')),
             'aliases': str(g.get('aliases', []))
         })
